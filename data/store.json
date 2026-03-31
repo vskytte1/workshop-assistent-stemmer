@@ -1,0 +1,71 @@
+{
+  "assistants": [
+    {
+      "id": "assistant-1",
+      "title": "Hejsa",
+      "chatbotId": "6db9e0ce-dfcd-441d-8865-6a3c4fe24111"
+    },
+    {
+      "id": "assistant-2",
+      "title": "Assistent 2",
+      "chatbotId": "260c84d9-0878-45f5-8a80-c2e074c1a431"
+    },
+    {
+      "id": "assistant-3",
+      "title": "Assistent 3",
+      "chatbotId": "90b2c838-170a-4c74-9ae5-62273c97d8c7"
+    },
+    {
+      "id": "assistant-1774954761304-d2af96",
+      "title": "Assistent 4",
+      "chatbotId": ""
+    }
+  ],
+  "rounds": [
+    {
+      "id": "10fda36d-fea7-4d8e-8ae8-c36555a9a3c9",
+      "name": "Runde 3",
+      "status": "closed",
+      "createdAt": "2026-03-31T11:03:28.570Z",
+      "closedAt": "2026-03-31T11:05:01.317Z"
+    },
+    {
+      "id": "ef0e00f2-adca-4701-95cb-2beade318d81",
+      "name": "Runde 2",
+      "status": "closed",
+      "createdAt": "2026-03-31T11:03:11.137Z",
+      "closedAt": "2026-03-31T11:05:04.717Z"
+    },
+    {
+      "id": "9f4f1ef1-22c5-4977-b0b0-9c8fb628921d",
+      "name": "Runde 1",
+      "status": "closed",
+      "createdAt": "2026-03-31T11:01:53.073Z",
+      "closedAt": "2026-03-31T11:03:11.137Z"
+    }
+  ],
+  "activeRoundId": null,
+  "votes": [
+    {
+      "id": "d59906b3-92d5-4ba1-8993-b8dab24f1edb",
+      "assistantId": "assistant-2",
+      "roundId": "10fda36d-fea7-4d8e-8ae8-c36555a9a3c9",
+      "voterId": "voter-1774954902389-c4c222171e5bf8",
+      "createdAt": "2026-03-31T11:03:35.930Z"
+    },
+    {
+      "id": "2a7b5eaa-af70-4feb-844b-94df84857ffd",
+      "assistantId": "assistant-1774954761304-d2af96",
+      "roundId": "ef0e00f2-adca-4701-95cb-2beade318d81",
+      "voterId": "voter-1774954902389-c4c222171e5bf8",
+      "createdAt": "2026-03-31T11:03:20.649Z"
+    },
+    {
+      "id": "fed5523f-b586-4ea6-8380-7d2a1c339927",
+      "assistantId": "assistant-2",
+      "roundId": "9f4f1ef1-22c5-4977-b0b0-9c8fb628921d",
+      "voterId": "voter-1774954902389-c4c222171e5bf8",
+      "createdAt": "2026-03-31T11:02:10.082Z"
+    }
+  ]
+}
