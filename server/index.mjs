@@ -112,6 +112,11 @@ app.use((request, response, next) => {
   }
 
   if (request.path.startsWith('/api/')) {
+    if (request.method === 'GET') {
+      response.redirect(`/login?returnTo=${encodeURIComponent('/')}`)
+      return
+    }
+
     response.status(401).json({ error: 'Password påkrævet.' })
     return
   }
