@@ -52,7 +52,7 @@ git push -u origin main
 
 Render-konfigurationen er:
 
-- build: `npm install && npm run build`
+- build: `npm install --include=dev && npm run build`
 - start: `npm start`
 - health check: `/api/state`
 
