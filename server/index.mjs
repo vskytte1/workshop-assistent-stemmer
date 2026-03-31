@@ -278,6 +278,14 @@ app.post('/api/votes', async (request, response) => {
   await persistAndBroadcast(response, 201, request)
 })
 
+app.post('/api/votes/reset', async (request, response) => {
+  store.rounds = []
+  store.activeRoundId = null
+  store.votes = []
+
+  await persistAndBroadcast(response, 200, request)
+})
+
 if (await directoryExists(distDir)) {
   app.use(express.static(distDir))
 

@@ -201,7 +201,8 @@ h3 {
 }
 
 .primary-button,
-.ghost-button {
+.ghost-button,
+.danger-button {
   border: 0;
   border-radius: 999px;
   padding: 14px 20px;
@@ -218,12 +219,14 @@ h3 {
 }
 
 .primary-button:hover,
-.ghost-button:hover {
+.ghost-button:hover,
+.danger-button:hover {
   transform: translateY(-1px);
 }
 
 .primary-button:disabled,
-.ghost-button:disabled {
+.ghost-button:disabled,
+.danger-button:disabled {
   opacity: 0.55;
   cursor: default;
   transform: none;
@@ -240,6 +243,12 @@ h3 {
   color: var(--ink);
   background: rgba(255, 252, 247, 0.72);
   border: 1px solid var(--line-strong);
+}
+
+.danger-button {
+  color: #fff9f7;
+  background: linear-gradient(180deg, #bf6b58 0%, #a95548 100%);
+  box-shadow: 0 12px 24px rgba(169, 85, 72, 0.22);
 }
 
 .ghost-button--small {
@@ -437,6 +446,28 @@ h3 {
   display: flex;
   gap: 10px;
   margin-bottom: 18px;
+}
+
+.danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(169, 85, 72, 0.18);
+  background: linear-gradient(180deg, rgba(255, 247, 244, 0.96), rgba(252, 240, 236, 0.92));
+}
+
+.danger-zone strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.danger-zone .muted-copy {
+  max-width: 48ch;
 }
 
 .round-creator input,
@@ -906,7 +937,8 @@ h3 {
   }
 
   .assistant-settings__toolbar,
-  .assistant-settings__card-top {
+  .assistant-settings__card-top,
+  .danger-zone {
     flex-direction: column;
     align-items: stretch;
   }

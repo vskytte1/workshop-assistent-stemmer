@@ -55,3 +55,9 @@ export function submitVote(roundId: string, assistantId: string, voterId: string
     body: JSON.stringify({ roundId, assistantId, voterId }),
   })
 }
+
+export function resetVotes() {
+  return request<WorkshopState>('/api/votes/reset', {
+    method: 'POST',
+  })
+}

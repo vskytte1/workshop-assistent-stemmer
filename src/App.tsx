@@ -10,6 +10,7 @@ import {
   closeRound,
   createRound,
   fetchState,
+  resetVotes,
   submitVote,
   updateAssistants,
 } from './lib/api'
@@ -217,6 +218,33 @@ function DisplayPage({ state, loading, error, replaceState }: SharedPageProps) {
     }
   }
 
+  async function handleResetVotes() {
+    if (
+      !window.confirm(
+        'Dette sletter alle tidligere runder og alle stemmer. Assistenternes opsætning bevares. Vil du fortsætte?',
+      )
+    ) {
+      return
+    }
+
+    setPendingAction('reset-votes')
+    setActionError(null)
+
+    try {
+      const nextState = await resetVotes()
+      setSelectedRoundId(null)
+      replaceState(nextState)
+    } catch (caughtError) {
+      setActionError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Kunne ikke nulstille afstemningerne.',
+      )
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   function handleAddAssistant() {
     setAssistantDrafts((currentAssistants) => [
       ...currentAssistants,
@@ -294,6 +322,7 @@ function DisplayPage({ state, loading, error, replaceState }: SharedPageProps) {
           onActivateRound={handleActivateRound}
           onRoundNameChange={setRoundName}
           onSaveAssistants={handleSaveAssistants}
+          onResetVotes={handleResetVotes}
           onAddAssistant={handleAddAssistant}
           onRemoveAssistant={handleRemoveAssistant}
           onSelectRound={(roundId) => setSelectedRoundId(roundId)}
@@ -317,6 +346,7 @@ type ControlModalProps = {
   onActivateRound: (roundId: string) => void
   onRoundNameChange: (value: string) => void
   onSaveAssistants: () => void
+  onResetVotes: () => void
   onAddAssistant: () => void
   onRemoveAssistant: (assistantId: string) => void
   onSelectRound: (roundId: string) => void
@@ -336,6 +366,7 @@ function ControlModal({
   onActivateRound,
   onRoundNameChange,
   onSaveAssistants,
+  onResetVotes,
   onAddAssistant,
   onRemoveAssistant,
   onSelectRound,
@@ -442,6 +473,22 @@ function ControlModal({
                 disabled={pendingAction === 'create-round'}
               >
                 {pendingAction === 'create-round' ? 'Opretter...' : 'Ny runde'}
+              </button>
+            </div>
+
+            <div className="danger-zone">
+              <div>
+                <strong>Nulstil afstemninger</strong>
+                <p className="muted-copy">
+                  Sletter alle tidligere runder og alle stemmer, men beholder dine assistenter.
+                </p>
+              </div>
+              <button
+                className="danger-button"
+                onClick={onResetVotes}
+                disabled={pendingAction === 'reset-votes' || state.rounds.length === 0}
+              >
+                {pendingAction === 'reset-votes' ? 'Nulstiller...' : 'Slet runder og stemmer'}
               </button>
             </div>
 
