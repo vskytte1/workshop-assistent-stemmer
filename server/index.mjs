@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { createServer } from 'node:http'
 import os from 'node:os'
@@ -18,6 +18,10 @@ const port = Number(process.env.PORT || 8787)
 const isProduction = process.env.NODE_ENV === 'production'
 const frontendPort = Number(process.env.FRONTEND_PORT || (isProduction ? port : 5173))
 let cachedPublicBaseUrl = normalizeBaseUrl(process.env.PUBLIC_BASE_URL)
+const authCookieName = 'workshop_auth'
+const appPassword = 'Halsnæs'
+const authCookieSecret = 'workshop-arena-auth-v1'
+const authCookieMaxAgeMs = 1000 * 60 * 60 * 12
 
 const defaultAssistants = [
   createAssistant('assistant-1', 'Assistent 1', '6db9e0ce-dfcd-441d-8865-6a3c4fe24111'),
@@ -42,9 +46,77 @@ const io = new SocketServer(httpServer, {
 
 app.set('trust proxy', true)
 app.use(express.json())
+app.use(express.urlencoded({ extended: false }))
 app.use((request, _response, next) => {
   updateCachedPublicBaseUrl(request)
   next()
+})
+
+app.get('/healthz', (_request, response) => {
+  response.status(200).json({ ok: true })
+})
+
+app.get('/login', (request, response) => {
+  if (isAuthenticatedRequest(request)) {
+    response.redirect(normalizeReturnTo(request.query.returnTo))
+    return
+  }
+
+  response
+    .status(200)
+    .type('html')
+    .send(renderLoginPage({
+      returnTo: normalizeReturnTo(request.query.returnTo),
+      errorMessage: '',
+    }))
+})
+
+app.post('/login', (request, response) => {
+  const returnTo = normalizeReturnTo(request.body?.returnTo || request.query.returnTo)
+
+  if (!passwordMatches(request.body?.password)) {
+    response
+      .status(401)
+      .type('html')
+      .send(renderLoginPage({
+        returnTo,
+        errorMessage: 'Forkert password. Prøv igen.',
+      }))
+    return
+  }
+
+  response.cookie(authCookieName, createAuthToken(), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isProduction,
+    maxAge: authCookieMaxAgeMs,
+    path: '/',
+  })
+  response.redirect(returnTo)
+})
+
+app.get('/logout', (_request, response) => {
+  response.clearCookie(authCookieName, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isProduction,
+    path: '/',
+  })
+  response.redirect('/login')
+})
+
+app.use((request, response, next) => {
+  if (isAuthenticatedRequest(request)) {
+    next()
+    return
+  }
+
+  if (request.path.startsWith('/api/')) {
+    response.status(401).json({ error: 'Password påkrævet.' })
+    return
+  }
+
+  response.redirect(`/login?returnTo=${encodeURIComponent(request.originalUrl || '/')}`)
 })
 
 let store = await loadStore()
@@ -208,6 +280,16 @@ if (await directoryExists(distDir)) {
     response.sendFile(path.join(distDir, 'index.html'))
   })
 }
+
+io.engine.use((request, response, next) => {
+  if (isAuthenticatedCookieHeader(request.headers.cookie)) {
+    next()
+    return
+  }
+
+  response.writeHead(401, { 'Content-Type': 'text/plain' })
+  response.end('Unauthorized')
+})
 
 io.on('connection', (socket) => {
   socket.emit('state:updated', buildClientState())
@@ -382,6 +464,208 @@ function deriveBaseUrlFromRequest(request) {
 function normalizeBaseUrl(value) {
   const normalized = normalizeText(value)
   return normalized ? normalized.replace(/\/+$/, '') : null
+}
+
+function isAuthenticatedRequest(request) {
+  return isAuthenticatedCookieHeader(request.headers.cookie)
+}
+
+function isAuthenticatedCookieHeader(cookieHeader) {
+  const cookies = parseCookies(cookieHeader)
+  return verifyAuthToken(cookies[authCookieName] || '')
+}
+
+function parseCookies(cookieHeader) {
+  const result = {}
+
+  if (!cookieHeader) {
+    return result
+  }
+
+  for (const part of cookieHeader.split(';')) {
+    const [rawName, ...rawValueParts] = part.split('=')
+    const name = rawName?.trim()
+    if (!name) {
+      continue
+    }
+
+    result[name] = decodeURIComponent(rawValueParts.join('=').trim())
+  }
+
+  return result
+}
+
+function createAuthToken() {
+  const payload = 'authenticated'
+  const signature = createHmac('sha256', authCookieSecret).update(payload).digest('hex')
+  return `${payload}.${signature}`
+}
+
+function verifyAuthToken(token) {
+  const normalizedToken = normalizeText(token)
+  if (!normalizedToken) {
+    return false
+  }
+
+  const [payload, signature] = normalizedToken.split('.')
+  if (payload !== 'authenticated' || !signature) {
+    return false
+  }
+
+  const expectedSignature = createHmac('sha256', authCookieSecret)
+    .update(payload)
+    .digest('hex')
+
+  return safeEquals(signature, expectedSignature)
+}
+
+function passwordMatches(input) {
+  const candidate = typeof input === 'string' ? input : ''
+  return safeEquals(candidate, appPassword)
+}
+
+function safeEquals(left, right) {
+  const leftBuffer = Buffer.from(left, 'utf8')
+  const rightBuffer = Buffer.from(right, 'utf8')
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer)
+}
+
+function normalizeReturnTo(value) {
+  const normalized = normalizeText(typeof value === 'string' ? value : '')
+  if (!normalized || !normalized.startsWith('/') || normalized.startsWith('//')) {
+    return '/'
+  }
+
+  return normalized
+}
+
+function escapeHtml(value) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
+
+function renderLoginPage({ returnTo, errorMessage }) {
+  const safeReturnTo = escapeHtml(returnTo)
+  const safeErrorMessage = escapeHtml(errorMessage)
+
+  return `<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login | AI Workshop Arena</title>
+    <style>
+      :root {
+        color: #26221c;
+        background:
+          radial-gradient(circle at top left, rgba(255, 245, 230, 0.96), transparent 28%),
+          radial-gradient(circle at top right, rgba(222, 212, 193, 0.48), transparent 22%),
+          linear-gradient(180deg, #f6f1e8 0%, #efe8dc 52%, #ece3d6 100%);
+        font-family: "Instrument Sans", system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(460px, 100%);
+        padding: 32px;
+        border-radius: 28px;
+        background: rgba(255, 252, 247, 0.95);
+        border: 1px solid rgba(74, 63, 48, 0.12);
+        box-shadow: 0 30px 90px rgba(55, 43, 29, 0.16);
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: #7c7367;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-family: "Newsreader", Georgia, serif;
+        font-size: 3rem;
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+      }
+      p {
+        margin: 14px 0 0;
+        color: #5f5648;
+        line-height: 1.55;
+      }
+      form {
+        margin-top: 24px;
+      }
+      label {
+        display: block;
+        margin-bottom: 10px;
+        color: #5f5648;
+        font-size: 0.92rem;
+        font-weight: 600;
+      }
+      input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(74, 63, 48, 0.2);
+        background: rgba(255, 253, 249, 0.98);
+        font: inherit;
+      }
+      input:focus {
+        outline: none;
+        border-color: rgba(198, 106, 61, 0.5);
+        box-shadow: 0 0 0 4px rgba(198, 106, 61, 0.12);
+      }
+      button {
+        width: 100%;
+        margin-top: 16px;
+        padding: 14px 18px;
+        border: 0;
+        border-radius: 999px;
+        color: #fffdf8;
+        background: linear-gradient(180deg, #d17a4f 0%, #b45b34 100%);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .error {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(169, 85, 72, 0.14);
+        color: #a95548;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <p class="eyebrow">Beskyttet Workshop</p>
+      <h1>Log ind</h1>
+      <p>Hele workshop-sitet er beskyttet med password.</p>
+      <form method="post" action="/login">
+        <input type="hidden" name="returnTo" value="${safeReturnTo}" />
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required autofocus />
+        <button type="submit">Fortsæt</button>
+      </form>
+      ${safeErrorMessage ? `<div class="error">${safeErrorMessage}</div>` : ''}
+    </main>
+  </body>
+</html>`
 }
 
 async function persistAndBroadcast(response, statusCode = 200, request = null) {

@@ -6,6 +6,7 @@ Webapp til workshop-brug med:
 - et kontrolpanel i modal til runder, QR-kode, resultater og redigering af titler/chatbot-id'er
 - en separat mobilvenlig afstemningsside, hvor hver enhed kan stemme én gang pr. runde
 - en separat resultatvisning på `/results`
+- password-beskyttelse for hele appen
 - lokal filpersistens i `data/store.json`
 
 ## Lokal kørsel
@@ -26,6 +27,12 @@ Produktionslignende lokal kørsel:
 npm run build
 npm run start
 ```
+
+Appen er derefter beskyttet af login på:
+
+- `/login`
+
+Password er sat i serveren. Health check endpointet `/healthz` er offentligt, så hosting-platformen kan verificere servicen uden login.
 
 ## Render deploy
 
@@ -54,7 +61,7 @@ Render-konfigurationen er:
 
 - build: `npm install --include=dev && npm run build`
 - start: `npm start`
-- health check: `/api/state`
+- health check: `/healthz`
 
 ### 3. Sæt environment variables
 
@@ -75,12 +82,14 @@ Hvis `PUBLIC_BASE_URL` ikke er sat, forsøger appen at udlede base URL fra reque
 
 Åbn og test:
 
+- `/login`
 - `/`
 - `/vote`
 - `/results`
 
 Minimumstest:
 
+- verificér at `/login` vises uden at være logget ind
 - opret en runde
 - afgiv mindst to stemmer fra to forskellige sessioner
 - verificér at live-resultater opdateres
@@ -91,6 +100,7 @@ Minimumstest:
 - `data/store.json` ligger på Render-instansen og kan blive nulstillet ved redeploy eller restart
 - det er accepteret i denne løsning
 - Render free tier kan have cold starts, så åbn appen lidt før workshopstart
+- password-beskyttelsen er hardcoded til workshop-brug og bør flyttes til en environment variable, hvis løsningen senere skal bruges mere permanent
 
 ## Vigtige filer
 

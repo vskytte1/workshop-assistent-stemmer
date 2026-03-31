@@ -6,7 +6,7 @@ services:
     autoDeploy: true
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
-    healthCheckPath: /api/state
+    healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
         value: production
